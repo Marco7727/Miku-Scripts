@@ -1,0 +1,1 @@
+# Miku-Scripts-auto-join
