@@ -99,12 +99,6 @@ local function getServerData()
     end
     
     local data = HttpService:JSONDecode(response)
-    return data.servers or {}
-end
-
--- 🚀 Teletransportarse a un servidor específico
-local function joinServer(serverData)
-    if not serverData or not serverData.data then
         warn("Datos de servidor inválidos")
         return
     end
