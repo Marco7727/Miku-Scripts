@@ -1,0 +1,283 @@
+loadstring([[
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local PathfindingService = game:GetService("PathfindingService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local savedCFrame = nil
+local tweenSpeed = 35
+local tweenActive = false
+local character, hrp, humanoid = nil, nil, nil
+local godmodeEnabled = true
+local autoStealEnabled = false
+
+-- Referencias actuales
+local function getCurrentReferences()
+    character = player.Character
+    if character then
+        hrp = character:FindFirstChild("HumanoidRootPart")
+        humanoid = character:FindFirstChild("Humanoid")
+    else
+        hrp, humanoid = nil, nil
+    end
+    return character, hrp, humanoid
+end
+
+-- Godmode
+local function applyGodmode()
+    getCurrentReferences()
+    if humanoid then
+        humanoid.MaxHealth = math.huge
+        humanoid.Health = math.huge
+        humanoid.BreakJointsOnDeath = false
+        humanoid.HealthChanged:Connect(function()
+            if godmodeEnabled and humanoid.Health < humanoid.MaxHealth then
+                humanoid.Health = humanoid.MaxHealth
+            end
+        end)
+    end
+end
+
+-- Pathfinding tween
+local function pathfindingTween(targetPosition, speed)
+    if tweenActive or not targetPosition then return end
+    tweenActive = true
+    getCurrentReferences()
+    if not hrp or not humanoid then tweenActive = false return end
+
+    local path = PathfindingService:CreatePath({
+        AgentRadius = 2,
+        AgentHeight = 5,
+        AgentCanJump = true,
+        AgentJumpHeight = 10,
+        AgentMaxSlope = 45
+    })
+    path:ComputeAsync(hrp.Position, targetPosition)
+
+    if path.Status == Enum.PathStatus.Success then
+        local waypoints = path:GetWaypoints()
+        local index = 1
+        local function moveNext()
+            if not tweenActive or index > #waypoints then
+                tweenActive = false
+                return
+            end
+            local wp = waypoints[index]
+            if wp.Action == Enum.PathWaypointAction.Jump then
+                humanoid.Jump = true
+            end
+            local targetPos = Vector3.new(wp.Position.X, hrp.Position.Y, wp.Position.Z)
+            local dist = (hrp.Position - targetPos).Magnitude
+            local t = dist / speed
+            local tween = TweenService:Create(hrp, TweenInfo.new(t, Enum.EasingStyle.Linear), {CFrame = CFrame.new(targetPos)})
+            tween:Play()
+            tween.Completed:Connect(function()
+                index = index + 1
+                moveNext()
+            end)
+        end
+        moveNext()
+    else
+        warn("❌ Pathfinding falló")
+        tweenActive = false
+    end
+end
+
+-- Auto Steal callback
+local function onInteractionFinished()
+    if savedCFrame then
+        pathfindingTween(savedCFrame.Position, tweenSpeed)
+    end
+end
+
+-- Detectar ProximityPrompts
+local function connectProximityPrompts()
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            obj.Triggered:Connect(function(plr)
+                if plr == player and autoStealEnabled then
+                    wait(0.1)
+                    onInteractionFinished()
+                end
+            end)
+        end
+    end
+end
+Workspace.DescendantAdded:Connect(function(obj)
+    if obj:IsA("ProximityPrompt") then
+        obj.Triggered:Connect(function(plr)
+            if plr == player and autoStealEnabled then
+                wait(0.1)
+                onInteractionFinished()
+            end
+        end)
+    end
+end)
+connectProximityPrompts()
+
+-- GUI
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.Name = "MikuScriptsGUI"
+gui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 220, 0, 170)
+frame.Position = UDim2.new(0.3, 0, 0.3, 0)
+frame.BackgroundColor3 = Color3.fromRGB(0, 170, 255) -- celeste
+frame.Active = true
+frame.Draggable = true
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(0.8, 0, 0, 25)
+title.BackgroundTransparency = 1
+title.Text = "Miku Scripts"
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 20
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+local minimizeBtn = Instance.new("TextButton", frame)
+minimizeBtn.Size = UDim2.new(0, 30, 0, 25)
+minimizeBtn.Position = UDim2.new(1, -35, 0, 0)
+minimizeBtn.Text = "_"
+minimizeBtn.BackgroundTransparency = 1
+minimizeBtn.Font = Enum.Font.SourceSansBold
+minimizeBtn.TextSize = 20
+minimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+local saveBtn = Instance.new("TextButton", frame)
+saveBtn.Size = UDim2.new(0, 200, 0, 30)
+saveBtn.Position = UDim2.new(0, 10, 0, 35)
+saveBtn.Text = "Save Position"
+saveBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 220)
+saveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+Instance.new("UICorner", saveBtn)
+
+local autoStealBtn = Instance.new("TextButton", frame)
+autoStealBtn.Size = UDim2.new(0, 200, 0, 30)
+autoStealBtn.Position = UDim2.new(0, 10, 0, 75)
+autoStealBtn.Text = "Auto Steal OFF"
+autoStealBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 220)
+autoStealBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+Instance.new("UICorner", autoStealBtn)
+
+local resetBtn = Instance.new("TextButton", frame)
+resetBtn.Size = UDim2.new(0, 95, 0, 30)
+resetBtn.Position = UDim2.new(0, 10, 0, 115)
+resetBtn.Text = "Reset"
+resetBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 220)
+resetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+Instance.new("UICorner", resetBtn)
+
+local gotoBtn = Instance.new("TextButton", frame)
+gotoBtn.Size = UDim2.new(0, 95, 0, 30)
+gotoBtn.Position = UDim2.new(0, 115, 0, 115)
+gotoBtn.Text = "Ir a posición"
+gotoBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 220)
+gotoBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+Instance.new("UICorner", gotoBtn)
+
+-- Botones
+saveBtn.MouseButton1Click:Connect(function()
+    getCurrentReferences()
+    if hrp then
+        savedCFrame = hrp.CFrame
+        saveBtn.Text = "Saved!"
+        coroutine.wrap(function()
+            wait(1.5)
+            saveBtn.Text = "Save Position"
+        end)()
+    end
+end)
+
+autoStealBtn.MouseButton1Click:Connect(function()
+    autoStealEnabled = not autoStealEnabled
+    autoStealBtn.Text = autoStealEnabled and "Auto Steal ON" or "Auto Steal OFF"
+end)
+
+resetBtn.MouseButton1Click:Connect(function()
+    getCurrentReferences()
+    if character and humanoid then
+        resetBtn.Text = "Resetting..."
+        godmodeEnabled = false
+        tweenActive = false
+        pcall(function()
+            humanoid.MaxHealth = 100
+            humanoid.Health = 0
+            humanoid.BreakJointsOnDeath = true
+        end)
+        spawn(function()
+            wait(0.1)
+            pcall(function() player:LoadCharacter() end)
+            local newChar = player.CharacterAdded:Wait()
+            local newHum = newChar:WaitForChild("Humanoid")
+            local newRoot = newChar:WaitForChild("HumanoidRootPart")
+            wait(1)
+            godmodeEnabled = true
+            getCurrentReferences()
+            applyGodmode()
+            if savedCFrame and newRoot then
+                wait(0.5)
+                pathfindingTween(savedCFrame.Position, tweenSpeed)
+            end
+            wait(1)
+            resetBtn.Text = "Reset"
+        end)
+    end
+end)
+
+gotoBtn.MouseButton1Click:Connect(function()
+    if savedCFrame and hrp then
+        pathfindingTween(savedCFrame.Position, tweenSpeed)
+        gotoBtn.Text = "Moviendo..."
+        coroutine.wrap(function()
+            wait(2)
+            gotoBtn.Text = "Ir a posición"
+        end)()
+    end
+end)
+
+minimizeBtn.MouseButton1Click:Connect(function()
+    if frame.Size.Y.Offset > 50 then
+        frame:TweenSize(UDim2.new(0, 220, 0, 30), "Out", "Quad", 0.3)
+        minimizeBtn.Text = "+"
+        for _, b in pairs({saveBtn, autoStealBtn, resetBtn, gotoBtn}) do
+            b.Visible = false
+        end
+    else
+        frame:TweenSize(UDim2.new(0, 220, 0, 170), "Out", "Quad", 0.3)
+        minimizeBtn.Text = "_"
+        for _, b in pairs({saveBtn, autoStealBtn, resetBtn, gotoBtn}) do
+            b.Visible = true
+        end
+    end
+end)
+
+RunService.Heartbeat:Connect(function()
+    if godmodeEnabled and humanoid then
+        humanoid.MaxHealth = math.huge
+        humanoid.Health = math.huge
+        humanoid.BreakJointsOnDeath = false
+    end
+end)
+
+pcall(function()
+    local mt = getrawmetatable(game)
+    local old = mt.__namecall
+    setreadonly(mt, false)
+    mt.__namecall = function(self, ...)
+        if getnamecallmethod() == "Kick" then
+            return wait(math.huge)
+        end
+        return old(self, ...)
+    end
+    setreadonly(mt, true)
+end)
+
+if player.Character then applyGodmode() end
+player.CharacterAdded:Connect(applyGodmode)
+
+print("🌌 Miku Scripts cargado ✅")
+]])()
