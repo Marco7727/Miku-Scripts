@@ -1,0 +1,115 @@
+-- GUI JobId Join - Miku Scripts
+local TeleportService = game:GetService("TeleportService")
+local player = game.Players.LocalPlayer
+local placeId = 109983668079237 -- Steal a Brainrot, confirmado
+
+-- GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "JobIdJoinUI"
+pcall(function()
+    ScreenGui.Parent = game:GetService("CoreGui")
+end)
+if not ScreenGui.Parent then
+    ScreenGui.Parent = player:WaitForChild("PlayerGui")
+end
+
+-- MAIN FRAME
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 300, 0, 180)
+MainFrame.Position = UDim2.new(0.5, -150, 0.4, -90)
+MainFrame.BackgroundColor3 = Color3.fromRGB(50, 200, 255)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent = MainFrame
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundColor3 = Color3.fromRGB(100, 230, 255)
+Title.Text = "Miku Scripts"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 18
+Title.Parent = MainFrame
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 10)
+TitleCorner.Parent = Title
+
+-- Label JobId
+local JobLabel = Instance.new("TextLabel")
+JobLabel.Size = UDim2.new(1, -20, 0, 25)
+JobLabel.Position = UDim2.new(0, 10, 0, 50)
+JobLabel.BackgroundTransparency = 1
+JobLabel.Text = "Job Id:"
+JobLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+JobLabel.Font = Enum.Font.Gotham
+JobLabel.TextSize = 14
+JobLabel.Parent = MainFrame
+
+-- Caja de texto
+local JobBox = Instance.new("TextBox")
+JobBox.Size = UDim2.new(1, -20, 0, 30)
+JobBox.Position = UDim2.new(0, 10, 0, 75)
+JobBox.BackgroundColor3 = Color3.fromRGB(150, 230, 255)
+JobBox.Text = ""
+JobBox.PlaceholderText = "Pega aquí el Job Id"
+JobBox.TextColor3 = Color3.fromRGB(0, 0, 0)
+JobBox.Font = Enum.Font.Gotham
+JobBox.TextSize = 14
+JobBox.ClearTextOnFocus = true
+JobBox.Parent = MainFrame
+
+-- Botón Join
+local JoinBtn = Instance.new("TextButton")
+JoinBtn.Size = UDim2.new(1, -20, 0, 35)
+JoinBtn.Position = UDim2.new(0, 10, 0, 115)
+JoinBtn.BackgroundColor3 = Color3.fromRGB(100, 230, 255)
+JoinBtn.Text = "Unirse"
+JoinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+JoinBtn.Font = Enum.Font.GothamBold
+JoinBtn.TextSize = 16
+JoinBtn.Parent = MainFrame
+
+-- Label de estado
+local Status = Instance.new("TextLabel")
+Status.Size = UDim2.new(1, -20, 0, 20)
+Status.Position = UDim2.new(0, 10, 0, 155)
+Status.BackgroundTransparency = 1
+Status.Text = ""
+Status.TextColor3 = Color3.fromRGB(255, 255, 255)
+Status.Font = Enum.Font.Gotham
+Status.TextSize = 14
+Status.Parent = MainFrame
+
+-- 🔹 Función para limpiar JobId
+local function cleanJobId(s)
+    if not s then return "" end
+    s = tostring(s)
+    s = s:gsub("%s+", "") -- quita espacios
+    s = s:gsub('"', ""):gsub("'", "") -- quita comillas
+    return s
+end
+
+-- 🔹 Acción Join (la función que pediste aquí)
+JoinBtn.MouseButton1Click:Connect(function()
+    local raw = JobBox.Text
+    local jobId = cleanJobId(raw)
+    if jobId ~= "" then
+        Status.Text = "🔄 Uniéndome..."
+        print("[MikuScripts] placeId:", placeId, "jobId:", jobId)
+        local ok, err = pcall(function()
+            TeleportService:TeleportToPlaceInstance(placeId, jobId, player)
+        end)
+        if not ok then
+            Status.Text = "⚠ Error: "..tostring(err)
+            warn("[MikuScripts] Teleport error:", err)
+        end
+    else
+        Status.Text = "⚠ Ingresa un Job Id válido"
+    end
+end)
